@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 
 interface IERC721 is IERC165{
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -24,11 +26,19 @@ contract RadicalNFT is IERC721, IERC721Metadata {
     using Address for address;
     using Strings for uint256;
 
+    IERC20 private _coin;
+
     // Token name
     string private _name;
 
     // Token symbol
     string private _symbol;
+
+    // Tax rate. 1000 = 100 %
+    uint private _rate;
+
+    // Duaration of one cycle
+    uint private _cycleDuration;
 
     // Mapping from token ID to owner address
     mapping(uint256 => address) private _owners;
@@ -43,9 +53,20 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     mapping(uint256 => priceAtTime[]) private _priceHistorys;
 
-    constructor(string memory name_, string memory symbol_) {
+    constructor(string memory name_, string memory symbol_, address coinAddress_) {
         _name = name_;
         _symbol = symbol_;
+        _coin = IERC20(coinAddress_);
+    }
+
+    function buy(uint256 tokenId) public {
+        address owner = RadicalNFT.ownerOf(tokenId);
+        require(owner != msg.sender, "ERC721: you already own this NFT");
+        priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
+        uint price = priceHistory[priceHistory.length - 1].price;
+        require(_coin.allowance(msg.sender, address(this)) >= price);
+        require(_coin.transferFrom(msg.sender, address(this), price));
+        _transfer(owner, msg.sender, tokenId);
     }
 
     function setPrice(uint256 price, uint256 tokenId) public {
