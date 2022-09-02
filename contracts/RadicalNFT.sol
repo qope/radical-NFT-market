@@ -36,9 +36,45 @@ contract RadicalNFT is IERC721, IERC721Metadata {
     // Mapping owner address to token count
     mapping(address => uint256) private _balances;
 
+    struct priceAtTime {
+        uint256 price;
+        uint256 timestamp;
+    }
+
+    mapping(uint256 => priceAtTime[]) private _priceHistorys;
+
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
+    }
+
+    function setPrice(uint256 price, uint256 tokenId) public {
+        require(RadicalNFT.ownerOf(tokenId) == msg.sender, "ERC721: setprice incorrect owner");
+        _priceHistorys[tokenId].push(priceAtTime(price, block.timestamp));
+    }
+
+    function getAvgPrice(uint256 tokenId, uint256 duration) public view returns (uint256) {
+        uint256 currentTime = block.timestamp;
+        uint256 start = currentTime - duration;
+        priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
+        uint previousIndex = 0;
+        for(uint i=0; i < priceHistory.length; i++ ){
+            if(priceHistory[i].timestamp > start){
+                break;
+            }
+            previousIndex = i;
+        }
+        uint priceCum = 0;
+        for(uint i=previousIndex; i < priceHistory.length; i++ ){
+            if ( i == previousIndex ) {
+                priceCum += priceHistory[i].price*(priceHistory[i+1].timestamp - start);
+            } else if (i < priceHistory.length - 1) {
+                priceCum += priceHistory[i].price*(priceHistory[i+1].timestamp - priceHistory[i].timestamp);
+            } else {
+                priceCum += priceHistory[i].price*(currentTime - priceHistory[i].timestamp);
+            }
+        }
+        return priceCum/duration;
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
