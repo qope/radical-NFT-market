@@ -46,6 +46,13 @@ contract RadicalNFT is IERC721, IERC721Metadata {
     // Mapping owner address to token count
     mapping(address => uint256) private _balances;
 
+    struct tax {
+        uint256 amount;
+        uint256 timelimit;
+    }
+
+    mapping(uint256 => tax) private _taxes;
+
     struct priceAtTime {
         uint256 price;
         uint256 timestamp;
@@ -53,20 +60,67 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     mapping(uint256 => priceAtTime[]) private _priceHistorys;
 
-    constructor(string memory name_, string memory symbol_, address coinAddress_) {
+    constructor(string memory name_, string memory symbol_, address coinAddress_, uint cycleDuration_, uint rate_) {
         _name = name_;
         _symbol = symbol_;
         _coin = IERC20(coinAddress_);
+        _cycleDuration = cycleDuration_;
+        _rate = rate_;
+    }
+
+    function confiscation(uint256 tokenId) public returns (bool) {
+        uint amount = _taxes[tokenId].amount;
+        uint timelimit = _taxes[tokenId].timelimit;
+        uint currentTime = block.timestamp;
+        if (amount != 0){
+            if (currentTime > timelimit) {
+                _burn(tokenId);
+                return true;
+            }
+        } else {
+            if (currentTime > timelimit + _cycleDuration) {
+                _burn(tokenId);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function update(uint256 tokenId) public {
+        uint currentTime = block.timestamp;
+        uint timelimit = _taxes[tokenId].timelimit;
+        require(currentTime > timelimit && currentTime <= timelimit + _cycleDuration, "upadate condition unsatisfied");
+        uint avgPrice = getAvgPrice(tokenId, timelimit - _cycleDuration, timelimit);
+        uint taxAmount = avgPrice*_rate/1000;
+        _taxes[tokenId] = tax(taxAmount, timelimit + _cycleDuration);
+    }
+
+    function payTax(uint256 tokenId) public {
+        uint currentTime = block.timestamp;
+        uint amount = _taxes[tokenId].amount;
+        uint timelimit = _taxes[tokenId].timelimit;
+        require(currentTime <= timelimit);
+        require(_coin.allowance(msg.sender, address(this)) >= amount);
+        require(_coin.transferFrom(msg.sender, address(this), amount));
+        _taxes[tokenId] = tax(0, timelimit + _cycleDuration);
     }
 
     function buy(uint256 tokenId) public {
+        require(!confiscation(tokenId), "consficated");
         address owner = RadicalNFT.ownerOf(tokenId);
-        require(owner != msg.sender, "ERC721: you already own this NFT");
+        require(owner != msg.sender, "you already own this NFT");
         priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
         uint price = priceHistory[priceHistory.length - 1].price;
-        require(_coin.allowance(msg.sender, address(this)) >= price);
-        require(_coin.transferFrom(msg.sender, address(this), price));
+        uint taxBefore = _taxes[tokenId].amount;
+        uint timelimit = _taxes[tokenId].timelimit;
+        uint currentTime = block.timestamp;
+        uint duration = currentTime - timelimit;
+        uint taxNow = getAvgPrice(tokenId, timelimit, currentTime)*_rate*duration/(1000*_cycleDuration);
+        uint totalAmount = price + taxBefore + taxNow;
+        require(_coin.allowance(msg.sender, address(this)) >= totalAmount);
+        require(_coin.transferFrom(msg.sender, address(this), totalAmount));
         _transfer(owner, msg.sender, tokenId);
+        _taxes[tokenId] = tax(0, currentTime + _cycleDuration);
     }
 
     function setPrice(uint256 price, uint256 tokenId) public {
@@ -74,28 +128,34 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         _priceHistorys[tokenId].push(priceAtTime(price, block.timestamp));
     }
 
-    function getAvgPrice(uint256 tokenId, uint256 duration) public view returns (uint256) {
-        uint256 currentTime = block.timestamp;
-        uint256 start = currentTime - duration;
+    function getAvgPrice(uint256 tokenId, uint256 start, uint256 end) public view returns (uint256) {
+        require(start < end);
         priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
-        uint previousIndex = 0;
+        uint startIndex = 0;
         for(uint i=0; i < priceHistory.length; i++ ){
             if(priceHistory[i].timestamp > start){
                 break;
             }
-            previousIndex = i;
+            startIndex = i;
+        }
+        uint endIndex = 0;
+        for(uint i=0; i < priceHistory.length; i++ ){
+            if(priceHistory[i].timestamp > end){
+                break;
+            }
+            endIndex = i;
         }
         uint priceCum = 0;
-        for(uint i=previousIndex; i < priceHistory.length; i++ ){
-            if ( i == previousIndex ) {
+        for(uint i=startIndex; i <= endIndex; i++ ){
+            if ( i == startIndex ) {
                 priceCum += priceHistory[i].price*(priceHistory[i+1].timestamp - start);
-            } else if (i < priceHistory.length - 1) {
+            } else if (i < endIndex) {
                 priceCum += priceHistory[i].price*(priceHistory[i+1].timestamp - priceHistory[i].timestamp);
             } else {
-                priceCum += priceHistory[i].price*(currentTime - priceHistory[i].timestamp);
+                priceCum += priceHistory[i].price*(end - priceHistory[i].timestamp);
             }
         }
-        return priceCum/duration;
+        return priceCum/(end - start);
     }
 
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
