@@ -2,8 +2,12 @@ import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 
 async function main() {
+  const [owner] = await ethers.getSigners();
+  const ownerAddress = owner.address;
+  console.log(ownerAddress);
+
   const Coin = await ethers.getContractFactory("Coin");
-  const coin = await Coin.deploy();
+  const coin = await Coin.deploy(ownerAddress);
   await coin.deployed();
   const coinAddress = coin.address;
 
@@ -23,7 +27,7 @@ async function main() {
     maxItemNum
     );
   await rnft.deployed();
-  // console.log(`Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`);
+  console.log(`Coin deployed to ${coin.address}\nrNFT deployed to ${rnft.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

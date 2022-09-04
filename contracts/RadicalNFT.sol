@@ -96,7 +96,7 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
         uint256 newItemId = _tokenIds.current();
         uint currentTime = block.timestamp;
         require(newItemId < _maxItemNum, "maxItemNum reached");
-        require(_coin.allowance(msg.sender, address(this)) >= _mintPrice);
+        require(_coin.allowance(msg.sender, address(this)) >= _mintPrice, "not sufficient allowance");
         require(_coin.transferFrom(msg.sender, address(this), _mintPrice));
         _mint(msg.sender, newItemId);
         _taxes[newItemId] = tax(_mintPrice*_rate/1000, currentTime + _cycleDuration);
@@ -162,6 +162,12 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
     function setPrice(uint256 price, uint256 tokenId) public {
         require(RadicalNFT.ownerOf(tokenId) == msg.sender, "ERC721: setprice incorrect owner");
         _priceHistorys[tokenId].push(priceAtTime(price, block.timestamp));
+    }
+
+    function getPrice(uint256 tokenId) public view returns (uint256) {
+        require(_exists(tokenId));
+        priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
+        return priceHistory[priceHistory.length -1].price;
     }
 
     function getAvgPrice(uint256 tokenId, uint256 start, uint256 end) public view returns (uint256) {
