@@ -79,10 +79,12 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     function mint() public returns (uint256) {
         uint256 newItemId = _tokenIds.current();
+        uint currentTime = block.timestamp;
         require(newItemId < _maxItemNum, "maxItemNum reached");
         require(_coin.allowance(msg.sender, address(this)) >= _mintPrice);
         require(_coin.transferFrom(msg.sender, address(this), _mintPrice));
         _mint(msg.sender, newItemId);
+        _taxes[newItemId] = tax(_mintPrice*_rate/1000, currentTime + _cycleDuration);
         _tokenIds.increment();
         return newItemId;
     }
