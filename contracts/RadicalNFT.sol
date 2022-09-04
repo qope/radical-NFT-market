@@ -100,6 +100,7 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
         require(_coin.transferFrom(msg.sender, address(this), _mintPrice));
         _mint(msg.sender, newItemId);
         _taxes[newItemId] = tax(_mintPrice*_rate/1000, currentTime + _cycleDuration);
+        _priceHistorys[newItemId].push(priceAtTime(_mintPrice, currentTime));
         _tokenIds.increment();
         return newItemId;
     }
@@ -150,8 +151,10 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
         uint taxBefore = _taxes[tokenId].amount;
         uint timelimit = _taxes[tokenId].timelimit;
         uint currentTime = block.timestamp;
-        uint duration = currentTime - timelimit;
-        uint taxNow = getAvgPrice(tokenId, timelimit, currentTime)*_rate*duration/(1000*_cycleDuration);
+        require(currentTime <= timelimit, "timelimit has been passed");
+        uint duration = currentTime - (timelimit - _cycleDuration);
+        uint avgPrice = getAvgPrice(tokenId, timelimit - _cycleDuration, currentTime);
+        uint taxNow = (avgPrice*_rate/1000)*duration/_cycleDuration;
         uint totalAmount = price + taxBefore + taxNow;
         require(_coin.allowance(msg.sender, address(this)) >= totalAmount);
         require(_coin.transferFrom(msg.sender, address(this), totalAmount));
@@ -165,13 +168,13 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
     }
 
     function getPrice(uint256 tokenId) public view returns (uint256) {
-        require(_exists(tokenId));
+        require(_exists(tokenId), "this token does not exist");
         priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
         return priceHistory[priceHistory.length -1].price;
     }
 
     function getAvgPrice(uint256 tokenId, uint256 start, uint256 end) public view returns (uint256) {
-        require(start < end);
+        require(start <= end, "error: start > end");
         priceAtTime[] memory priceHistory = _priceHistorys[tokenId];
         uint startIndex = 0;
         for(uint i=0; i < priceHistory.length; i++ ){
@@ -187,6 +190,9 @@ contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
             }
             endIndex = i;
         }
+        if (startIndex==endIndex){
+            return priceHistory[startIndex].price;
+        } 
         uint priceCum = 0;
         for(uint i=startIndex; i <= endIndex; i++ ){
             if ( i == startIndex ) {

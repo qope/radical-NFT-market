@@ -6,8 +6,9 @@ async function main() {
   const ownerAddress = owner.address;
   console.log(ownerAddress);
 
+  const mintAmount = BigNumber.from(10).pow(18).mul(100);
   const Coin = await ethers.getContractFactory("Coin");
-  const coin = await Coin.deploy(ownerAddress);
+  const coin = await Coin.deploy(ownerAddress, mintAmount);
   await coin.deployed();
   const coinAddress = coin.address;
 

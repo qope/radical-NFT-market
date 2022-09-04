@@ -17,7 +17,7 @@ describe("RadicalNFT", function () {
     const coinAddress = coin.address;
 
     const cycleDuration = 30; // 30 seconds
-    const rate = 100; // 10%
+    const rate = 80; // 8%
     const mintPrice = BigNumber.from(10).pow(17);
     const maxItemNum = 100;
     const rNFT = await ethers.getContractFactory("RadicalNFT");
@@ -37,7 +37,6 @@ describe("RadicalNFT", function () {
   describe("Deployment", function () {
     it("Should mint correct amount", async function () {
       const { coin, owner, mintAmount } = await loadFixture(deployFixture);
-
       expect(await coin.balanceOf(owner.address)).to.equal(mintAmount);
     });
     });
@@ -45,33 +44,26 @@ describe("RadicalNFT", function () {
   describe("Mint", function () {
     it("Should mint NFT", async function () {
       const { coin, rnft, mintPrice } = await loadFixture(deployFixture);
-      const approveTx = await coin.approve(rnft.address, mintPrice);
-      await approveTx.wait();
-      await expect(rnft.mint()).not.to.be.reverted;
+      expect(await coin.approve(rnft.address, mintPrice)).not.to.be.reverted;
+      expect(await rnft.mint()).not.to.be.reverted;
+      expect(await rnft.getPrice(0)).to.equal(mintPrice);
     });
 
     it("Should not mint NFT without sufficient founds", async function () {
       const { coin, rnft, mintPrice } = await loadFixture(deployFixture);
-      const approveTx = await coin.approve(rnft.address, mintPrice.sub(1));
-      await approveTx.wait();
+      expect(await coin.approve(rnft.address, mintPrice.sub(1))).not.to.be.reverted;
       await expect(rnft.mint()).to.be.reverted;
     });
   });
 
-  // describe("Transfers", function () {
-  //   it("Should transfer NFT", async function () {
-  //     const { coin, rnft, someone, mintPrice } = await loadFixture(deployFixture);
-  //     const approveTx = await coin.approve(rnft.address, mintPrice);
-  //     await approveTx.wait();
-  //     const mintTx  = await rnft.mint();
-  //     await mintTx.wait();
-  //     const transferTx = await coin.transfer(someone.address, mintPrice.mul(2));
-  //     await transferTx.wait();
-  //     const approveTx2 = await coin.approve(someone.address, mintPrice.mul(2));
-  //     await approveTx2.wait();
-  //     const buyTx = await rnft.connect(someone).buy(0);
-  //     await buyTx.wait();
-  //     // rnft.connect(someone).buy()
-  //   });
-  // });
+  describe("Buy", function () {
+    it("Should buy NFT", async function () {
+      const { coin, rnft, someone, mintPrice } = await loadFixture(deployFixture);
+      expect(await coin.approve(rnft.address, mintPrice)).not.to.be.reverted;
+      expect(await rnft.mint()).not.to.be.reverted;
+      expect(await coin.transfer(someone.address, mintPrice.mul(2))).not.to.be.reverted;
+      expect(await coin.connect(someone).approve(rnft.address, mintPrice.mul(2))).not.to.be.reverted;
+      expect(await rnft.connect(someone).buy(0)).not.to.be.reverted;
+    });
+  });
 });
