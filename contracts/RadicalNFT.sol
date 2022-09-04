@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 
 interface IERC721 is IERC165{
@@ -25,6 +26,8 @@ interface IERC721Metadata is IERC721 {
 contract RadicalNFT is IERC721, IERC721Metadata {
     using Address for address;
     using Strings for uint256;
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
 
     IERC20 private _coin;
 
@@ -39,6 +42,10 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     // Duaration of one cycle
     uint private _cycleDuration;
+
+    uint private _mintPrice;
+
+    uint private _maxItemNum;
 
     // Mapping from token ID to owner address
     mapping(uint256 => address) private _owners;
@@ -60,12 +67,24 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     mapping(uint256 => priceAtTime[]) private _priceHistorys;
 
-    constructor(string memory name_, string memory symbol_, address coinAddress_, uint cycleDuration_, uint rate_) {
+    constructor(string memory name_, string memory symbol_, address coinAddress_, uint cycleDuration_, uint rate_, uint mintPrice_, uint maxItemNum_) {
         _name = name_;
         _symbol = symbol_;
         _coin = IERC20(coinAddress_);
         _cycleDuration = cycleDuration_;
         _rate = rate_;
+        _mintPrice = mintPrice_;
+        _maxItemNum = maxItemNum_;
+    }
+
+    function mint() public returns (uint256) {
+        uint256 newItemId = _tokenIds.current();
+        require(newItemId < _maxItemNum, "maxItemNum reached");
+        require(_coin.allowance(msg.sender, address(this)) >= _mintPrice);
+        require(_coin.transferFrom(msg.sender, address(this), _mintPrice));
+        _mint(msg.sender, newItemId);
+        _tokenIds.increment();
+        return newItemId;
     }
 
     function confiscation(uint256 tokenId) public returns (bool) {
