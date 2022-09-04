@@ -67,7 +67,15 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
     mapping(uint256 => priceAtTime[]) private _priceHistorys;
 
-    constructor(string memory name_, string memory symbol_, address coinAddress_, uint cycleDuration_, uint rate_, uint mintPrice_, uint maxItemNum_) {
+    constructor(
+        string memory name_, 
+        string memory symbol_, 
+        address coinAddress_, 
+        uint cycleDuration_, 
+        uint rate_, 
+        uint mintPrice_, 
+        uint maxItemNum_
+        ) {
         _name = name_;
         _symbol = symbol_;
         _coin = IERC20(coinAddress_);
@@ -183,7 +191,6 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         return
             interfaceId == type(IERC721).interfaceId ||
             interfaceId == type(IERC721Metadata).interfaceId;
-            // super.supportsInterface(interfaceId);
     }
 
     function balanceOf(address owner) public view virtual override returns (uint256) {
@@ -215,11 +222,6 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
     }
 
-    /**
-     * @dev Base URI for computing {tokenURI}. If set, the resulting URI for each
-     * token will be the concatenation of the `baseURI` and the `tokenId`. Empty
-     * by default, can be overridden in child contracts.
-     */
     function _baseURI() internal view virtual returns (string memory) {
         return "";
     }
@@ -227,6 +229,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
         return _owners[tokenId] != address(0);
     }
+
     function _mint(address to, uint256 tokenId) internal virtual {
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
@@ -240,6 +243,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
         _afterTokenTransfer(address(0), to, tokenId);
     }
+
     function _burn(uint256 tokenId) internal virtual {
         address owner = RadicalNFT.ownerOf(tokenId);
 
@@ -252,6 +256,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
         _afterTokenTransfer(owner, address(0), tokenId);
     }
+
     function _transfer(
         address from,
         address to,
@@ -270,9 +275,11 @@ contract RadicalNFT is IERC721, IERC721Metadata {
 
         _afterTokenTransfer(from, to, tokenId);
     }
+
     function _requireMinted(uint256 tokenId) internal view virtual {
         require(_exists(tokenId), "ERC721: invalid token ID");
     }
+    
     function _beforeTokenTransfer(
         address from,
         address to,
