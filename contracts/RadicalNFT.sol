@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IERC721 is IERC165{
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -23,7 +23,7 @@ interface IERC721Metadata is IERC721 {
     function tokenURI(uint256 tokenId) external view returns (string memory);
 }
 
-contract RadicalNFT is IERC721, IERC721Metadata {
+contract RadicalNFT is IERC721, IERC721Metadata, Ownable {
     using Address for address;
     using Strings for uint256;
     using Counters for Counters.Counter;
@@ -58,6 +58,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         uint256 timelimit;
     }
 
+    // Mapping from token ID to its tax status.
     mapping(uint256 => tax) private _taxes;
 
     struct priceAtTime {
@@ -65,6 +66,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         uint256 timestamp;
     }
 
+    // Mapping from token ID to its price history.
     mapping(uint256 => priceAtTime[]) private _priceHistorys;
 
     constructor(
@@ -83,6 +85,11 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         _rate = rate_;
         _mintPrice = mintPrice_;
         _maxItemNum = maxItemNum_;
+    }
+
+    function withdraw() public onlyOwner {
+        uint balance = _coin.balanceOf(address(this));
+        _coin.transfer(msg.sender, balance);
     }
 
     function mint() public returns (uint256) {
@@ -279,7 +286,7 @@ contract RadicalNFT is IERC721, IERC721Metadata {
     function _requireMinted(uint256 tokenId) internal view virtual {
         require(_exists(tokenId), "ERC721: invalid token ID");
     }
-    
+
     function _beforeTokenTransfer(
         address from,
         address to,
@@ -291,5 +298,4 @@ contract RadicalNFT is IERC721, IERC721Metadata {
         address to,
         uint256 tokenId
     ) internal virtual {}
-
 }
