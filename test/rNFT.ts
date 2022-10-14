@@ -66,4 +66,10 @@ describe("RadicalNFT", function () {
       expect(await rnft.connect(someone).buy(0)).not.to.be.reverted;
     });
   });
+
+  describe("Pay tax", function () {
+    it("Should pay tax", async function () { 
+
+    } );
+  });
 });
